@@ -137,10 +137,81 @@ terraform -chdir=terraform fmt
 
 ---
 
+## Phase 3: Application Development, Health Probes & Multi-Stage Dockerfile
+
+### 1. The 60-Second Interview Pitch (STAR Format)
+* **Situation**: In modern cloud platform engineering, infrastructure exists to run workloads. However, deploying raw code without cloud-native health probes, observability endpoints, and security hardening causes erratic rolling updates and security vulnerabilities.
+* **Task**: Develop a production-grade microservice equipped with Kubernetes liveness and readiness probes, Prometheus metrics collection, automated unit tests, and an optimized multi-stage Docker container.
+* **Action**:
+  1. Built the microservice (`app/src/server.js`) exposing `/` (app info), `/healthz` (liveness probe), `/ready` (readiness probe), and `/metrics` (Prometheus metrics).
+  2. Implemented `prom-client` to capture both default Node.js runtime metrics and custom HTTP request latency histograms with route/status labeling.
+  3. Integrated a `SIGTERM` graceful shutdown handler to allow in-flight HTTP connections to drain cleanly during Kubernetes rolling updates.
+  4. Authored automated unit tests with Jest and Supertest (`app/test/server.test.js`), achieving 100% pass rate across all endpoints.
+  5. Built a multi-stage `Dockerfile`: Stage 1 runs tests and compiles dependencies; Stage 2 copies only production artifacts onto minimal `node:20-alpine`, dropping root privileges to `USER node`.
+* **Result**: An ultra-compact (<80MB), non-root container image with built-in observability, ready for zero-downtime Kubernetes deployments and CI pipeline automation.
+
+---
+
+### 2. Key Actions & The Architectural "Why"
+
+| Feature | Implementation | Why It Matters (The Senior Engineering Rationale) |
+| :--- | :--- | :--- |
+| **Liveness Probe (`/healthz`)** | Returns 200 OK + uptime; fails on process freeze | If an application suffers a thread deadlock or memory leak, process managers like systemd may not know it's stuck. The kubelet calls `/healthz`: if it fails, Kubernetes kills and restarts the pod automatically. |
+| **Readiness Probe (`/ready`)** | Returns 200 OK only when dependencies are ready | During pod startup or heavy database warmup, sending traffic immediately causes HTTP 502/503 errors for users. The kubelet withholds traffic from the Pod's Service endpoints until `/ready` returns 200. |
+| **Graceful Shutdown (`SIGTERM`)** | Intercepts `SIGTERM` and runs `server.close()` | During rolling deployments, Kubernetes terminates old pods. Without a graceful shutdown handler, active user requests are abruptly severed. Our handler drains active requests before closing the socket. |
+| **Multi-Stage Docker Build** | Stage 1 (Builder/Test) → Stage 2 (Minimal Runner) | Eliminates build tools (compilers, git, devDependencies) from the final production image. This reduces image pull times across the cluster from minutes to seconds and eliminates known CVE vulnerabilities. |
+| **Non-Root User (`USER node`)** | Runs container processes as unprivileged UID 1000 | **Security Hardening**: If a zero-day remote code execution vulnerability compromises the application, the attacker is trapped as an unprivileged user and cannot modify root files or escape to the host node. |
+| **Prometheus Metrics (`/metrics`)** | Exports metrics in Prometheus text exposition format | Rather than relying on external agents, the application exposes native Prometheus counters and latency histograms. This feeds directly into our Grafana dashboards and Alertmanager in Phase 6. |
+
+---
+
+### 3. Command Reference Used in Phase 3
+
+```powershell
+# 1. Install microservice dependencies
+npm.cmd install --prefix app
+
+# 2. Execute automated unit test suite
+npm.cmd test --prefix app
+
+# 3. Local container testing with Docker Compose
+docker compose up --build -d
+
+# 4. Verify local endpoints
+curl http://localhost:3000/
+curl http://localhost:3000/healthz
+curl http://localhost:3000/ready
+curl http://localhost:3000/metrics
+
+# 5. Stop local container
+docker compose down
+```
+
+---
+
+### 4. High-Probability Interview Questions & Model Answers
+
+#### Q1: "What is the critical difference between a Liveness Probe and a Readiness Probe?"
+* **Junior Answer**: *"Liveness checks if the app is alive, readiness checks if it is ready."*
+* **Senior Answer**: *"The difference lies in how Kubernetes acts upon failure:*
+  * *If a **Liveness Probe** fails, Kubernetes assumes the application is deadlocked or unrecoverable and **restarts the container**.*
+  * *If a **Readiness Probe** fails, Kubernetes **does NOT restart the container**. Instead, it temporarily removes the pod's IP from the Kubernetes Service Endpoints so no user traffic is routed to it while it finishes booting or recovers from a transient dependency failure.*
+  * *Conflating the two is dangerous: if an external database goes down and you put that check in a liveness probe, Kubernetes will enter an infinite pod restart cascade across your entire cluster."*
+
+#### Q2: "Why is running containers as root considered a severe security risk?"
+* **Junior Answer**: *"Because root has too many permissions."*
+* **Senior Answer**: *"Container runtimes share the underlying host Linux kernel. By default, UID 0 inside an unprivileged container is mapped to UID 0 (root) on the host node unless user namespaces are configured. If an attacker exploits an application vulnerability to escape the container boundary, they immediately gain full root control over the physical or virtual EC2 host, allowing them to compromise all neighboring pods and steal IAM node credentials."*
+
+#### Q3: "What happens during a Kubernetes rolling update if your application does not handle `SIGTERM`?"
+* **Junior Answer**: *"It just stops."*
+* **Senior Answer**: *"When Kubernetes replaces an old pod with a new one, it sends a `SIGTERM` signal to the process and begins a termination grace period (default 30 seconds). If the application doesn't trap `SIGTERM`, it either abruptly drops active TCP connections or the process ignores it until Kubernetes forcefully kills it with `SIGKILL`. This causes user-facing HTTP 502/504 errors. A proper graceful shutdown handler stops accepting new connections, drains existing HTTP requests, closes database pools, and exits cleanly with code 0."*
+
+---
+
 ## Roadmap of Upcoming Phases (To Be Documented):
-- **Phase 3**: Microservice Application Development, Health Probes & Multi-Stage Dockerfile
 - **Phase 4**: Automated CI Pipeline (GitLab CI / GitHub Actions) & Security Scanning (Trivy)
 - **Phase 5**: GitOps Deployment Engine — ArgoCD Installation & Application Syncing
 - **Phase 6**: Observability Stack — Prometheus Operator, Grafana Dashboards & Slack Alertmanager
 - **Phase 7**: End-to-End Validation, MTTR Benchmark & Portfolio Documentation
+
 
