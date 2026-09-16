@@ -9,11 +9,14 @@ Write-Host "======================================================" -ForegroundC
 
 Set-Location -Path "$PSScriptRoot\..\terraform"
 
-Write-Host "`nDestroying EKS Cluster, Worker Nodes, VPC, and NAT Gateways..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Destroying EKS Cluster, Worker Nodes, VPC, and NAT Gateways..." -ForegroundColor Yellow
 terraform destroy -auto-approve
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "`n[✓] All cloud resources destroyed successfully. Zero ongoing AWS charges!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "[SUCCESS] All cloud resources destroyed successfully. Zero ongoing AWS charges!" -ForegroundColor Green
 } else {
-    Write-Host "`n[!] Some resources may not have destroyed cleanly. Check the Terraform logs above." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "[!] Some resources may not have destroyed cleanly. Check the Terraform logs above." -ForegroundColor Red
 }
