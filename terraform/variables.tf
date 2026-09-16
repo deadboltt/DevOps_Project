@@ -43,7 +43,7 @@ variable "private_subnet_cidrs" {
 variable "node_instance_types" {
   description = "EC2 instance types for EKS managed node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"] # Free-Tier eligible in ap-south-1
 }
 
 variable "desired_nodes" {
