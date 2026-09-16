@@ -29,7 +29,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: microservice
-          image: ghcr.io/deadboltt/devops_project:702d4e5
+          image: ghcr.io/deadboltt/devops_project:5c44282
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
