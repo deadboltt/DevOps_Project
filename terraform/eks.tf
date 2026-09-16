@@ -46,6 +46,7 @@ resource "aws_eks_node_group" "main" {
   }
 
   instance_types = var.node_instance_types
+  ami_type       = "AL2023_x86_64_STANDARD" # EKS 1.30 requires Amazon Linux 2023 (AL2 deprecated)
   capacity_type  = "ON_DEMAND" # Use "SPOT" for 70% cost savings in sandbox/testing
   disk_size      = 20          # 20 GB root volume per node
 
