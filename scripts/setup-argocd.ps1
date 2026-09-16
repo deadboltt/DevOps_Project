@@ -56,13 +56,13 @@ if ($adminPassword) {
     Write-Host "======================================================" -ForegroundColor Green
     Write-Host " [SUCCESS] ArgoCD Successfully Installed and Synchronized!" -ForegroundColor Green
     Write-Host "======================================================" -ForegroundColor Green
-    Write-Host " UI Access URL:   https://localhost:8080" -ForegroundColor Cyan
+    Write-Host " UI Access URL:   http://localhost:8080" -ForegroundColor Cyan
     Write-Host " Username:        admin" -ForegroundColor Cyan
     Write-Host " Password:        $decodedPassword" -ForegroundColor Yellow
     Write-Host "======================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "To access the ArgoCD Web Dashboard, run:" -ForegroundColor Cyan
-    Write-Host "kubectl port-forward -n argocd svc/argo-cd-argocd-server 8080:443" -ForegroundColor White
+    Write-Host "kubectl port-forward -n argocd svc/argo-cd-argocd-server 8080:80" -ForegroundColor White
 } else {
     Write-Host ""
     Write-Host "[!] Admin secret not yet available. Run the following to check:" -ForegroundColor Yellow
