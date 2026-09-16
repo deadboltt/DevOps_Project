@@ -73,6 +73,10 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Convert Repository Name to Lowercase
+        run: |
+          echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -119,12 +123,12 @@ jobs:
 
       - name: Update Deployment Image Tag with Git Commit SHA
         run: |
-          IMAGE_TAG="${{ github.sha }}"
-          SHORT_SHA=$(echo $IMAGE_TAG | cut -c1-7)
+          IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          SHORT_SHA=$(echo '${{ github.sha }}' | cut -c1-7)
           echo "Updating deployment.yaml to image tag: $SHORT_SHA"
           
           # Replace the image line in k8s/deployment.yaml
-          sed -i -E "s|image: ghcr.io/[^:]+:[^ ]+|image: ghcr.io/${{ github.repository }}:$SHORT_SHA|g" k8s/deployment.yaml
+          sed -i -E "s|image: ghcr.io/[^:]+:[^ ]+|image: ghcr.io/$IMAGE_NAME:$SHORT_SHA|g" k8s/deployment.yaml
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -137,3 +141,4 @@ jobs:
             git commit -m "ci(gitops): update deployment image to $SHORT_SHA [skip ci]"
             git push origin master
           fi
+
