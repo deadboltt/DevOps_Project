@@ -1,0 +1,30 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# AWS & Cloud Credentials
+.aws/
+credentials
+*.pem
+
+# Kubernetes
+kubeconfig*
+*.kubeconfig
+
+# Node / App
+node_modules/
+npm-debug.log*
+dist/
+build/
+.env
+.env.local
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
