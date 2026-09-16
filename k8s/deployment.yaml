@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitops-microservice
+  namespace: default
+  labels:
+    app: gitops-microservice
+    tier: api
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Spin up 1 new pod before tearing down old pods (zero downtime)
+      maxUnavailable: 0  # Never allow available pods to drop below desired replicas
+  selector:
+    matchLabels:
+      app: gitops-microservice
+  template:
+    metadata:
+      labels:
+        app: gitops-microservice
+        tier: api
+    spec:
+      # Pod-level security context: Non-root execution
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: microservice
+          image: ghcr.io/deadboltt/devops_project:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          # Resource requests and limits prevent noisy neighbor CPU/RAM starvation
+          resources:
+            requests:
+              cpu: "100m"      # 0.1 CPU core
+              memory: "128Mi"  # 128 MB RAM
+            limits:
+              cpu: "250m"      # 0.25 CPU core
+              memory: "256Mi"  # 256 MB RAM
+          # Kubernetes Liveness Probe (kills and restarts deadlocked container)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Kubernetes Readiness Probe (diverts user traffic until app is ready)
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          env:
+            - name: PORT
+              value: "3000"
+            - name: ENVIRONMENT
+              value: "production"
+            - name: APP_VERSION
+              value: "1.0.0"

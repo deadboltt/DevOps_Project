@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitops-microservice-svc
+  namespace: default
+  labels:
+    app: gitops-microservice
+spec:
+  type: LoadBalancer # In AWS EKS, this automatically creates an AWS Network Load Balancer (NLB) or Classic ELB
+  selector:
+    app: gitops-microservice
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP

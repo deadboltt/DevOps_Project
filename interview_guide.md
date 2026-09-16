@@ -208,10 +208,75 @@ docker compose down
 
 ---
 
+## Phase 4: Automated CI Pipeline, DevSecOps & Kubernetes Manifests
+
+### 1. The 60-Second Interview Pitch (STAR Format)
+* **Situation**: Manual builds and deployments introduce human error, inconsistent container tags, and security risks. Enterprise platforms require automated testing, vulnerability scanning, and seamless synchronization between application code and deployment manifests.
+* **Task**: Design an automated Continuous Integration (CI) and DevSecOps pipeline using GitHub Actions to test code, scan for vulnerabilities with Aqua Security Trivy, publish immutable container images to GitHub Container Registry (GHCR), and automatically update Kubernetes manifests for GitOps delivery.
+* **Action**:
+  1. Authored `.github/workflows/ci.yml` running automated unit tests on every pull request and commit.
+  2. Integrated Aqua Security Trivy to scan the codebase and container filesystem for High and Critical CVEs (Shift-Left Security).
+  3. Configured Docker Buildx to build and publish multi-stage container images to GHCR, tagging each build with its unique, immutable Git commit SHA (`github.sha`).
+  4. Authored production Kubernetes manifests (`k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/hpa.yaml`, `k8s/servicemonitor.yaml`) with zero-downtime rolling updates (`maxSurge: 1, maxUnavailable: 0`), non-root security contexts, and CPU/memory resource quotas.
+  5. Built the automated GitOps bridge: upon successful build and test, the CI pipeline automatically updates the image tag in `k8s/deployment.yaml` and commits with `[skip ci]` to trigger ArgoCD.
+* **Result**: A completely automated, zero-touch CI/CD pipeline bridging code commits directly to GitOps cluster manifests without storing cluster credentials in CI.
+
+---
+
+### 2. Key Actions & The Architectural "Why"
+
+| Component / Step | Architectural Decision | Why It Matters (The Senior Engineering Rationale) |
+| :--- | :--- | :--- |
+| **Commit SHA Tagging (Immutability)** | Tag images with short Git SHA instead of `:latest` | Using `:latest` is an anti-pattern in production. Kubernetes caches images based on tags; with `:latest`, Kubernetes may not pull updated images if the node already cached a previous `:latest`. Commit SHA tagging guarantees immutability, auditability, and instant one-click rollbacks. |
+| **Shift-Left Security (Trivy Scan)** | Integrated Trivy container scanner into CI | Finding vulnerabilities in production is expensive and dangerous. Shift-left security scans dependencies and base OS packages during the CI build stage, blocking vulnerable code before it reaches the container registry. |
+| **Rolling Update (`maxSurge: 1`)** | `maxSurge: 1` and `maxUnavailable: 0` | Guarantees **Zero Downtime**. Kubernetes spins up a new pod and waits for its `/ready` probe to succeed *before* draining and terminating an old pod. At no point is the service under-provisioned. |
+| **Resource Requests & Limits** | Configured CPU (100m/250m) and RAM (128Mi/256Mi) | Prevents the "noisy neighbor" problem where a single runaway pod consumes all CPU/RAM on the worker node and causes node kernel panics. Also mandatory for Horizontal Pod Autoscaler (HPA) to calculate metric thresholds. |
+| **CI-to-GitOps Bridge (`[skip ci]`)** | Automated commit updating `k8s/deployment.yaml` with `[skip ci]` | Connects CI (builder) to GitOps (deployer). When CI publishes an image, it commits the new tag to Git. Adding `[skip ci]` prevents Git from triggering another infinite recursive CI pipeline run. |
+
+---
+
+### 3. Command Reference Used in Phase 4
+
+```bash
+# 1. Manually test Trivy scanner locally (via Docker)
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest fs .
+
+# 2. Inspect Kubernetes manifests syntax locally
+kubectl apply --dry-run=client -f k8s/deployment.yaml
+kubectl apply --dry-run=client -f k8s/service.yaml
+kubectl apply --dry-run=client -f k8s/hpa.yaml
+
+# 3. Simulate rolling update status check
+kubectl rollout status deployment/gitops-microservice
+```
+
+---
+
+### 4. High-Probability Interview Questions & Model Answers
+
+#### Q1: "Why should you never use the `:latest` tag in production Kubernetes deployments?"
+* **Junior Answer**: *"Because it's hard to know which version is running."*
+* **Senior Answer**: *"Using `:latest` violates container immutability and causes severe operational issues:*
+  * *1. **Kubernetes Image Caching**: The default `imagePullPolicy` for `:latest` is `Always`, but if a node network glitch occurs or image digests match, Kubernetes may not pull the new build.*
+  * *2. **Rollback Impossibility**: If a bug occurs, you cannot simply say 'roll back to the previous version' because both the broken version and the previous version were named `:latest`.*
+  * *3. **Lack of Auditability**: By tagging every image with its exact 7-character Git commit SHA, we can trace every single running container in our cluster directly back to the exact line of code, author, and pull request that produced it."*
+
+#### Q2: "What is the difference between Resource Requests and Resource Limits in Kubernetes?"
+* **Junior Answer**: *"Requests are what the pod wants, limits are what it can't exceed."*
+* **Senior Answer**: *"The distinction affects two different Kubernetes subsystems:*
+  * ***Requests (Scheduling)**: Used by `kube-scheduler` to place the pod on a node that has enough free CPU and RAM. If no node has enough capacity to satisfy the Request, the pod stays in `Pending` state.*
+  * ***Limits (Enforcement)**: Enforced by the Linux kernel (`cgroups`). If a pod tries to exceed its CPU Limit, the kernel throttles the CPU (causing slow responses, but no crashes). However, if a pod exceeds its **Memory Limit**, the Linux kernel immediately issues an **OOMKill (Out of Memory)** signal, terminating the container."*
+
+#### Q3: "In GitOps, how does the CI pipeline trigger a deployment without cluster access?"
+* **Junior Answer**: *"GitLab CI or GitHub Actions connects to the cluster and runs `kubectl apply`."*
+* **Senior Answer**: *"In pure GitOps, CI **never** connects to the Kubernetes cluster. Granting CI write access to production clusters violates least privilege and exposes admin credentials in build runners. Instead, CI builds the container image, pushes it to the registry, and simply makes a commit to the GitOps repository updating the image tag in `deployment.yaml`. ArgoCD, running inside the cluster, detects the new commit in Git and pulls the update automatically. This ensures our cluster remains completely private with zero open inbound firewall ports for CI."*
+
+---
+
 ## Roadmap of Upcoming Phases (To Be Documented):
-- **Phase 4**: Automated CI Pipeline (GitLab CI / GitHub Actions) & Security Scanning (Trivy)
 - **Phase 5**: GitOps Deployment Engine — ArgoCD Installation & Application Syncing
 - **Phase 6**: Observability Stack — Prometheus Operator, Grafana Dashboards & Slack Alertmanager
 - **Phase 7**: End-to-End Validation, MTTR Benchmark & Portfolio Documentation
+
 
 

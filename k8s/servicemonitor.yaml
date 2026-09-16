@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gitops-microservice-monitor
+  namespace: default
+  labels:
+    app: gitops-microservice
+    release: prometheus # Scraped automatically by kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: gitops-microservice
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
