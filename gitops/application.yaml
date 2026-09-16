@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-microservice
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: devops-platform-project
+
+  # 1. Git Source Configuration (Single Source of Truth)
+  source:
+    repoURL: "https://github.com/deadboltt/DevOps_Project.git"
+    targetRevision: master
+    path: k8s
+
+  # 2. Kubernetes Cluster Destination
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: default
+
+  # 3. Continuous Delivery & Reconciliation Sync Policy
+  syncPolicy:
+    automated:
+      prune: true    # Automatically delete cluster resources when their manifest is removed from Git
+      selfHeal: true # Instantly revert manual cluster tampering (kubectl edit) to match Git state
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true # Improves performance by only syncing resources that have drifted
+      - PruneLast=true          # Ensures newly required resources are running before deleting obsolete ones
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

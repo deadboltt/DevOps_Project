@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: devops-platform-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "Enterprise multi-tenant boundary for GitOps Microservice Platform"
+
+  # Allowed Git Source Repositories (Least Privilege: Prevents pulling from unauthorized repos)
+  sourceRepos:
+    - "https://github.com/deadboltt/DevOps_Project.git"
+
+  # Permitted Cluster & Namespace Destinations
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+
+  # Cluster-scoped resources allowed to be managed by this project
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  # Namespace-scoped resources permitted
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "monitoring.coreos.com"
+      kind: ServiceMonitor

@@ -1,0 +1,29 @@
+# -----------------------------------------------------------------------------
+# ArgoCD Helm Values Configuration
+# Chart: argo/argo-cd
+# -----------------------------------------------------------------------------
+global:
+  domain: argocd.internal
+
+# ArgoCD API Server Settings
+server:
+  service:
+    type: ClusterIP # Use LoadBalancer or Ingress in AWS, ClusterIP + port-forward in dev
+  extraArgs:
+    - --insecure # Disables TLS termination inside the pod when terminating at Ingress/LB
+
+# ArgoCD Application Controller
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true # Exposes ArgoCD sync and health metrics to Prometheus
+
+# Repo Server Settings
+repoServer:
+  metrics:
+    enabled: true
+
+# Redis (State Cache & Rate Limiting)
+redis:
+  enabled: true
