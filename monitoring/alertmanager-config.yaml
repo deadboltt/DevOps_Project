@@ -1,0 +1,36 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: microservice-alertmanager-config
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  route:
+    groupBy: ['alertname', 'namespace', 'job']
+    groupWait: 15s
+    groupInterval: 1m
+    repeatInterval: 4h
+    receiver: 'slack-notifications'
+    routes:
+      - matchers:
+          - name: severity
+            value: critical
+        receiver: 'slack-notifications'
+        continue: true
+  receivers:
+    - name: 'slack-notifications'
+      slackConfigs:
+        - channel: '#alerts'
+          sendResolved: true
+          # Replace with your actual Slack Incoming Webhook URL in production
+          apiURL:
+            name: alertmanager-slack-webhook
+            key: webhook-url
+          title: "[[ {{ .Status | toUpper }} ]] {{ .CommonLabels.alertname }}"
+          text: |
+            *Alert:* {{ .CommonAnnotations.summary }}
+            *Description:* {{ .CommonAnnotations.description }}
+            *Severity:* `{{ .CommonLabels.severity }}`
+            *Namespace:* `{{ .CommonLabels.namespace }}`
+          color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'

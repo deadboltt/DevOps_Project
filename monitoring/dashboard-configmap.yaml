@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microservice-golden-signals-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1" # Grafana sidecar automatically detects and imports this dashboard
+data:
+  microservice-dashboard.json: |-
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "title": "Traffic: Requests Per Second (RPS)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[1m])) by (method, route)",
+              "legendFormat": "{{method}} {{route}}"
+            }
+          ]
+        },
+        {
+          "title": "Errors: HTTP Status Codes (2xx, 4xx, 5xx)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[1m])) by (status_code)",
+              "legendFormat": "HTTP {{status_code}}"
+            }
+          ]
+        },
+        {
+          "title": "Latency: Response Time (p50, p95, p99)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50 (Median)"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "title": "Saturation: Pod CPU & Memory Utilization",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{pod=~\"gitops-microservice-.*\"})",
+              "legendFormat": "CPU Usage (Cores)"
+            },
+            {
+              "expr": "sum(container_memory_working_set_bytes{pod=~\"gitops-microservice-.*\"}) / (1024 * 1024)",
+              "legendFormat": "Memory Usage (MB)"
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["gitops", "microservice", "sre"],
+      "time": { "from": "now-30m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "GitOps Microservice: SRE Golden Signals",
+      "version": 1
+    }

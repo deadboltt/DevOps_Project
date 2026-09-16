@@ -1,0 +1,55 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: microservice-alert-rules
+  namespace: monitoring
+  labels:
+    release: prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: gitops-microservice-alerts
+      rules:
+        # Alert 1: Service is Down (Zero endpoints available)
+        - alert: MicroserviceDown
+          expr: up{job="gitops-microservice-monitor"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "GitOps Microservice is completely down"
+            description: "No healthy pods available for gitops-microservice in namespace {{ $labels.namespace }} for over 1 minute."
+
+        # Alert 2: High HTTP 5xx Error Rate (> 5% of total traffic)
+        - alert: HighHttp5xxErrorRate
+          expr: |
+            sum(rate(http_requests_total{status_code=~"5.."}[2m])) 
+            / 
+            sum(rate(http_requests_total[2m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High HTTP 5xx Error Rate (> 5%)"
+            description: "Microservice 5xx error rate is currently {{ $value | humanizePercentage }} over the last 2 minutes."
+
+        # Alert 3: High HTTP Request Latency (p95 > 500ms)
+        - alert: HighHttpLatencyP95
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p95 Latency (> 500ms)"
+            description: "95th percentile request latency exceeds 500ms for over 3 minutes."
+
+        # Alert 4: Pod CrashLooping
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{pod=~"gitops-microservice-.*"}[5m]) * 60 > 2
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod is CrashLooping"
+            description: "Pod {{ $labels.pod }} is restarting frequently (more than 2 restarts per minute)."

@@ -1,0 +1,54 @@
+# -----------------------------------------------------------------------------
+# kube-prometheus-stack Helm Values Configuration
+# Chart: prometheus-community/kube-prometheus-stack
+# -----------------------------------------------------------------------------
+
+# 1. Prometheus Operator Settings
+prometheusOperator:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# 2. Prometheus Server Settings
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {} # Discovers all ServiceMonitors across all namespaces
+    retention: 7d               # Retain metrics for 7 days
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1024Mi
+
+# 3. Grafana Settings
+grafana:
+  enabled: true
+  adminPassword: "admin" # Set strong password in production or use secrets
+  service:
+    type: ClusterIP      # Accessible via kubectl port-forward or Ingress
+  sidecar:
+    dashboards:
+      enabled: true      # Automatically imports any ConfigMap tagged with grafana_dashboard=1
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+# 4. Alertmanager Settings
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

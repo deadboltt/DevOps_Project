@@ -337,9 +337,83 @@ kubectl get pods -l app=gitops-microservice -w
 
 ---
 
+## Phase 6: Observability Stack — Prometheus, Grafana & Slack Alerting
+
+### 1. The 60-Second Interview Pitch (STAR Format)
+* **Situation**: Operating production microservices without telemetry leads to delayed incident response and silent performance degradation. Platform engineers must provide developers with standardized metrics, automated alerting, and intuitive dashboards out of the box.
+* **Task**: Design and deploy a cloud-native observability platform using Prometheus Operator, Alertmanager, and Grafana (`kube-prometheus-stack`), configure custom PromQL alerting rules, route incident alerts to Slack, and provision SRE 4 Golden Signals dashboards declaratively via GitOps.
+* **Action**:
+  1. Configured `kube-prometheus-stack` Helm values (`monitoring/values.yaml`) enabling automated `ServiceMonitor` discovery and Grafana ConfigMap dashboard sidecars.
+  2. Defined `PrometheusRule` alerts for total service outages, HTTP 5xx error rate spikes (>5%), latency degradation (p95 > 500ms), and pod crash loops.
+  3. Integrated `AlertmanagerConfig` routing critical and warning notifications to a `#alerts` Slack channel via webhook with rich contextual metadata.
+  4. Authored a production Grafana dashboard JSON visualizing the Google SRE 4 Golden Signals (Traffic, Errors, Latency, Saturation) packaged into a labeled ConfigMap for automated GitOps provisioning.
+  5. Built an automated deployment script (`scripts/setup-monitoring.ps1`) for single-command installation and port-forwarding.
+* **Result**: Zero-touch observability where new microservices are scraped automatically upon deployment, SRE dashboards load instantly without manual UI clicks, and critical incidents fire directly into Slack within 60 seconds.
+
+---
+
+### 2. Key Actions & The Architectural "Why"
+
+| Feature | Implementation | Why It Matters (The Senior Engineering Rationale) |
+| :--- | :--- | :--- |
+| **Pull vs. Push Metrics Model** | Prometheus scrapes `/metrics` endpoints; apps don't push | In a push model, if the metrics collector crashes, thousands of application threads back up trying to push metrics. With pull-based Prometheus, applications remain fast and decoupled. Prometheus controls scrape frequency and automatically detects dead targets (`up == 0`). |
+| **SRE 4 Golden Signals Dashboard** | Configured panels for Traffic, Errors, Latency, and Saturation | Standardized by Google Site Reliability Engineering: instead of 50 confusing graphs, these 4 metrics tell on-call engineers everything they need to know about system health at a glance. |
+| **GitOps Dashboard Provisioning** | Packaged dashboard JSON inside a ConfigMap with label `grafana_dashboard=1` | Eliminates "ClickOps". Creating dashboards manually in Grafana's UI causes configuration loss if the Grafana pod restarts. The sidecar pattern treats dashboards as version-controlled code in Git. |
+| **Alertmanager Grouping & Inhibit** | Configured `groupBy`, `groupWait: 15s`, `repeatInterval: 4h` | **Prevents Alert Fatigue**: When a cluster network switch fails, 50 individual pods crash. Alertmanager groups them into a single consolidated Slack notification instead of spamming engineers with 50 separate pings. |
+| **Dynamic ServiceMonitor Discovery** | Configured `serviceMonitorSelector: {}` in PrometheusSpec | Eliminates manual Prometheus target configuration. When developers deploy a new microservice with a `ServiceMonitor` resource, Prometheus automatically discovers and begins scraping it within seconds. |
+
+---
+
+### 3. Command Reference Used in Phase 6
+
+```powershell
+# 1. Automated Observability Stack Deployment
+.\scripts\setup-monitoring.ps1
+
+# 2. Access Grafana Dashboard (Credentials: admin / admin)
+kubectl port-forward -n monitoring svc/prometheus-grafana 3001:80
+# Open browser at: http://localhost:3001
+
+# 3. Access Prometheus Query Interface
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+# Open browser at: http://localhost:9090
+
+# 4. PromQL Diagnostic Queries
+# Instant error rate query:
+sum(rate(http_requests_total{status_code=~"5.."}[2m])) / sum(rate(http_requests_total[2m]))
+
+# 95th Percentile Latency query:
+histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+```
+
+---
+
+### 4. High-Probability Interview Questions & Model Answers
+
+#### Q1: "Why does Prometheus use a Pull model instead of a Push model?"
+* **Junior Answer**: *"Because that's how Prometheus was designed."*
+* **Senior Answer**: *"A pull model provides significant reliability and architectural benefits:*
+  * *1. **Health Detection**: If a microservice crashes, it cannot push an alert that it died. With a pull model, Prometheus attempts to scrape the endpoint; if it receives connection refused, `up == 0` immediately triggers an alert.*
+  * *2. **Centralized Overload Protection**: In a push model, if 500 pods burst under high traffic, they will overwhelm the central monitoring server with push traffic. In a pull model, Prometheus pulls only on its own schedule (e.g., every 15s), preventing monitoring collapse during traffic surges.*
+  * *3. **Decoupled Architecture**: Microservices simply expose a lightweight text endpoint (`/metrics`) and don't need to know where the Prometheus server lives or manage external network queues."*
+
+#### Q2: "What are the 4 Golden Signals in Site Reliability Engineering (SRE)?"
+* **Junior Answer**: *"CPU, Memory, Disk, and Network."*
+* **Senior Answer**: *"Those are low-level host metrics. The 4 Golden Signals defined by Google SRE focus on user-facing service health:*
+  * *1. **Latency**: The time it takes to service a request (differentiating between successful request latency and failed request latency).*
+  * *2. **Traffic**: A measure of how much demand is being placed on your system (e.g., HTTP Requests Per Second).*
+  * *3. **Errors**: The rate of requests that fail, either explicitly (HTTP 500s) or implicitly (wrong content returned).*
+  * *4. **Saturation**: How 'full' your service is, measuring the most constrained system resource (e.g., CPU, Memory, or database connection pool limits)."*
+
+#### Q3: "How does Grafana dynamically discover dashboards in a Kubernetes cluster without manual imports?"
+* **Junior Answer**: *"You upload the JSON file in the Grafana UI."*
+* **Senior Answer**: *"In our platform, we use the **Grafana Sidecar pattern**. In our Helm values, we enable `sidecar.dashboards.enabled = true` and specify a label selector (`grafana_dashboard: '1'`). The sidecar container runs alongside Grafana in the same pod and uses the Kubernetes Watch API to listen for any ConfigMap bearing that label. When our GitOps pipeline applies a new dashboard ConfigMap, the sidecar intercepts the event, extracts the JSON data, and injects it directly into Grafana's local filesystem via an in-memory volume. The dashboard appears in the UI instantly with zero downtime and zero manual clicks."*
+
+---
+
 ## Roadmap of Upcoming Phases (To Be Documented):
-- **Phase 6**: Observability Stack — Prometheus Operator, Grafana Dashboards & Slack Alertmanager
 - **Phase 7**: End-to-End Validation, MTTR Benchmark & Portfolio Documentation
+
 
 
 
