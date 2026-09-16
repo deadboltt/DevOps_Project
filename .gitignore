@@ -33,3 +33,6 @@ Thumbs.db
 decision.md
 interview_guide.md
 restart.md
+
+# Local Customizations & Plugins
+.agents/
