@@ -43,6 +43,10 @@ if ($LASTEXITCODE -eq 0) {
     aws eks update-kubeconfig --region $region --name $clusterName
 
     Write-Host ""
+    Write-Host "Installing Kubernetes Metrics Server for HPA autoscaling..." -ForegroundColor Cyan
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+    Write-Host ""
     Write-Host "Verifying cluster connection:" -ForegroundColor Green
     kubectl get nodes
 } else {
