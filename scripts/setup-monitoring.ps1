@@ -2,6 +2,12 @@
 # Automated Prometheus & Grafana Monitoring Stack Setup Script
 # =============================================================================
 
+# Ensure Helm is discoverable in PATH even if terminal session was not restarted
+$helmPath = "C:\Users\rajat\AppData\Local\Microsoft\WinGet\Packages\Helm.Helm_Microsoft.Winget.Source_8wekyb3d8bbwe\windows-amd64"
+if (Test-Path $helmPath) {
+    $env:Path = "$helmPath;$env:Path"
+}
+
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host " [GitOps EKS Platform] Installing Observability Stack  " -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
