@@ -73,10 +73,74 @@ winget install -e --id Helm.Helm --accept-source-agreements --accept-package-agr
 
 ---
 
+## Phase 2: Infrastructure as Code — AWS VPC, IAM & EKS via Terraform
+
+### 1. The 60-Second Interview Pitch (STAR Format)
+* **Situation**: Production Kubernetes workloads cannot run in default networks or on untagged subnets. They require isolated networking across multiple Availability Zones, least-privilege IAM policies, and declarative lifecycle management.
+* **Task**: Design and implement modular Terraform infrastructure to provision an AWS VPC with public and private subnets, IAM roles for control plane and worker nodes, an OIDC provider for IRSA, and an Amazon EKS cluster with managed node groups.
+* **Action**:
+  1. Built modular Terraform configs (`vpc.tf`, `iam.tf`, `eks.tf`, `outputs.tf`) targeting `ap-south-1`.
+  2. Isolated worker nodes strictly in 3 private subnets across 3 AZs, while public subnets handle ingress ALBs.
+  3. Configured Kubernetes-native AWS tags (`kubernetes.io/role/elb = 1` and `kubernetes.io/role/internal-elb = 1`) to enable dynamic load balancer discovery.
+  4. Established an IAM OIDC Identity Provider to enable IAM Roles for Service Accounts (IRSA), eliminating hardcoded cloud credentials in pods.
+  5. Implemented cost-containment engineering: single NAT Gateway for development, optional Spot instances, and automated `deploy.ps1` and `teardown.ps1` scripts.
+* **Result**: A 100% validated, declarative infrastructure ready for reproducible provisioning and clean zero-leak teardown.
+
+---
+
+### 2. Key Actions & The Architectural "Why"
+
+| Component | Architectural Decision | Why It Matters (The Senior Engineering Rationale) |
+| :--- | :--- | :--- |
+| **Private Subnets for Nodes** | Deployed worker nodes only in private subnets with no public IPs | **Defense in Depth**: Kubernetes nodes run container runtimes and host processes that should never be reachable from the public internet. Only managed ingress (ALB) in public subnets routes traffic inward. |
+| **Subnet Discovery Tags** | Added `kubernetes.io/role/elb = 1` on public subnets | The AWS Load Balancer Controller relies on this exact tag to dynamically discover which subnets are allowed to host internet-facing Application Load Balancers without hardcoding subnet IDs. |
+| **Single NAT Gateway in Dev** | Deployed 1 NAT Gateway instead of 3 (one per AZ) | AWS charges ~$32/month per NAT Gateway plus data transfer. In development, a single shared NAT in AZ-a routes egress traffic for all private subnets, saving ~$64/month while preserving security isolation. |
+| **IAM OIDC & IRSA** | Configured `aws_iam_openid_connect_provider` on the EKS cluster | **Security Best Practice**: Pods should never use long-lived AWS IAM access keys stored in Kubernetes Secrets. IRSA uses OpenID Connect (OIDC) federation to inject short-lived, auto-rotated STS tokens directly into service accounts. |
+| **Automated Teardown Script** | Built `scripts/teardown.ps1` (`terraform destroy -auto-approve`) | Prevents cloud cost creep. An idle EKS control plane costs $73/month. Having a one-click automated teardown script ensures engineers destroy resources when testing concludes. |
+
+---
+
+### 3. Command Reference Used in Phase 2
+
+```powershell
+# 1. Initialize Terraform providers & download AWS plugin (~> 5.0)
+terraform -chdir=terraform init
+
+# 2. Validate syntax and resource graph dependencies
+terraform -chdir=terraform validate
+
+# 3. Canonical code formatting
+terraform -chdir=terraform fmt
+
+# 4. Automated deployment and cluster connection
+.\scripts\deploy.ps1
+
+# 5. One-click cost-safe teardown (when testing is complete)
+.\scripts\teardown.ps1
+```
+
+---
+
+### 4. High-Probability Interview Questions & Model Answers
+
+#### Q1: "How do your Kubernetes pods securely access AWS services like S3 or DynamoDB?"
+* **Junior Answer**: *"I create an IAM user in AWS, generate an access key and secret key, and save them in a Kubernetes Secret."*
+* **Senior Answer**: *"I use **IAM Roles for Service Accounts (IRSA)**. In our Terraform code, we configure an IAM OIDC Identity Provider tied to the EKS cluster's issuer URL. We then attach an IAM role with an assume-role trust policy referencing the Kubernetes ServiceAccount. When the pod starts, the AWS EKS Pod Identity Webhook automatically projects a temporary, short-lived AWS STS token into the container. This eliminates static credentials and adheres to the principle of least privilege."*
+
+#### Q2: "Why did you place worker nodes in private subnets and what enables them to pull container images?"
+* **Junior Answer**: *"For security, and they use the internet."*
+* **Senior Answer**: *"Worker nodes must never be exposed to the public internet to prevent unauthorized ingress and direct OS-level attacks. However, worker nodes still require outbound internet access to pull base container images from public registries, communicate with the EKS API server, and fetch OS security patches. We route all outbound traffic from the private subnets through a NAT Gateway located in a public subnet, which in turn routes out through the Internet Gateway."*
+
+#### Q3: "What happens if you forget to tag your subnets with `kubernetes.io/role/elb`?"
+* **Junior Answer**: *"Kubernetes gives an error."*
+* **Senior Answer**: *"When you deploy an Ingress or a Service of type `LoadBalancer` using the AWS Load Balancer Controller, the controller queries the AWS EC2 API looking for subnets tagged with `kubernetes.io/role/elb = 1` for public ALBs or `kubernetes.io/role/internal-elb = 1` for internal ALBs. Without these tags, the controller cannot determine where to provision the load balancer, resulting in failed provisioning and ingress sync timeouts."*
+
+---
+
 ## Roadmap of Upcoming Phases (To Be Documented):
-- **Phase 2**: Infrastructure as Code — AWS VPC, IAM & EKS Cluster via Terraform
 - **Phase 3**: Microservice Application Development, Health Probes & Multi-Stage Dockerfile
 - **Phase 4**: Automated CI Pipeline (GitLab CI / GitHub Actions) & Security Scanning (Trivy)
 - **Phase 5**: GitOps Deployment Engine — ArgoCD Installation & Application Syncing
 - **Phase 6**: Observability Stack — Prometheus Operator, Grafana Dashboards & Slack Alertmanager
 - **Phase 7**: End-to-End Validation, MTTR Benchmark & Portfolio Documentation
+
