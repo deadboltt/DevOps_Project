@@ -76,9 +76,6 @@ This platform was built and benchmarked according to Google's **DevOps Research 
 | **Continuous Integration** | **GitHub Actions + DevSecOps** | Automated testing, Aqua Security Trivy vulnerability scans, and immutable image publishing tagged with Git commit SHAs. |
 | **Continuous Delivery** | **ArgoCD (GitOps)** | Pull-based continuous delivery controller with automatic drift detection, self-healing, and resource pruning. |
 | **Observability** | **Prometheus + Grafana (kube-prometheus-stack)** | PromQL alert rules for HTTP 5xx spikes and downtime, SRE Golden Signals dashboards loaded via ConfigMap sidecars, and Slack alert routing. |
-
-> Detailed technical justifications and trade-off analyses are documented in [**`decision.md`**](decision.md).
-
 ---
 
 ## 4. Repository Structure
@@ -121,9 +118,8 @@ DevOpsProject 1/
 │   ├── teardown.ps1             # Automated 1-click cloud destroy (zero cost leak)
 │   ├── setup-argocd.ps1         # Automated ArgoCD Helm deployment & credential extraction
 │   └── setup-monitoring.ps1     # Automated Prometheus/Grafana observability setup
-├── docker-compose.yml           # Local multi-container development environment
-├── decision.md                  # Architecture Decision Record (ADR)
-└── interview_guide.md           # Senior Interview Guide & Phase Logs (STAR format)
+└── docker-compose.yml           # Local multi-container development environment
+
 ```
 
 ---
@@ -174,17 +170,3 @@ When testing is complete, destroy all cloud resources with one command to avoid 
 ```powershell
 .\scripts\teardown.ps1
 ```
-
----
-
-## 6. Interview Preparation & Architectural Notes
-
-For senior DevOps and Platform Engineer interviews, refer to [**`interview_guide.md`**](interview_guide.md) for:
-* **60-Second STAR Pitches** for every layer of this platform.
-* **Architectural Trade-Offs**: Pull vs. Push GitOps, IRSA vs. static IAM keys, Multi-stage builds, and SRE Golden Signals.
-* **High-Probability Technical Questions & Model Answers** with Junior vs. Senior comparison tables.
-
----
-
-## License
-This project is open-source and licensed under the [MIT License](LICENSE).
