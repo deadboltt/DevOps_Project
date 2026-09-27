@@ -1,4 +1,4 @@
-# Full GitOps EKS Platform (Production Flagship)
+# Full GitOps EKS Platform (Production Flagship) 
 
 [![CI/CD Pipeline](https://github.com/deadboltt/DevOps_Project/actions/workflows/ci.yml/badge.svg)](https://github.com/deadboltt/DevOps_Project/actions/workflows/ci.yml)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-v1.30-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
