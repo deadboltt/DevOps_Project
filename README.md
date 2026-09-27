@@ -303,19 +303,5 @@ When you are finished testing, demoing, or interviewing, execute the automated t
 
 ---
 
-## 10. Senior Platform Engineer Interview Cheat Sheet
-
-### 60-Second Master Pitch (STAR Format)
-* **Situation**: Enterprise cloud teams require scalable, secure, and observable deployment workflows that eliminate human error, prevent configuration drift, and guarantee high availability.
-* **Task**: Design and implement a production-grade, end-to-end GitOps platform on Amazon EKS adhering to DORA metrics, DevSecOps security standards, and SRE observability best practices.
-* **Action**:
-  1. **Infrastructure as Code**: Provisioned an automated, highly available AWS VPC spanning 3 Availability Zones with private subnets, NAT gateway, IRSA identity federation, and an EKS v1.30 cluster using Terraform v1.16+.
-  2. **DevSecOps Pipeline**: Built a GitHub Actions CI pipeline integrating automated Jest unit tests, Aqua Security Trivy vulnerability scanning, multi-stage Docker builds (< 80MB, non-root user), and GHCR publishing.
-  3. **Pull-based Continuous Delivery**: Configured ArgoCD with declarative AppProject and Application CRDs for automated sync, self-healing drift detection, and zero-downtime rolling updates.
-  4. **Full-Stack Observability**: Deployed `kube-prometheus-stack` to collect the 4 SRE Golden Signals, configured custom PromQL alert rules for downtime and 5xx spikes, and established Alertmanager Slack notifications.
-* **Result**: Achieved lead time for changes under 2 minutes, mean time to recovery under 30 seconds, zero cluster credentials exposed in CI, and a 1-click teardown mechanism guaranteeing zero cloud cost leakage.
-
----
-
 ## License
 This project is open-source and licensed under the [MIT License](LICENSE).
